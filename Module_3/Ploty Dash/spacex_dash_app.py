@@ -87,7 +87,22 @@ def update_scatter_plot(selected_site, payload_range):
     filtered_df = filtered_df[(filtered_df["Payload Mass (kg)"] >= payload_range[0]) & 
                                (filtered_df["Payload Mass (kg)"] <= payload_range[1])]
     
-    fig = px.scatter(filtered_df, y="class", x="Payload Mass (kg)", color="Booster Version Category")
+    # Map class values to descriptive labels
+    filtered_df['Outcome'] = filtered_df['class'].map({1: 'Success Launch', 0: 'Failure Launch'})
+
+    fig = px.scatter(
+        filtered_df, 
+        y="Outcome",  # Use the new Outcome column
+        x="Payload Mass (kg)", 
+        color="Booster Version Category", 
+        size='Payload Mass (kg)',  # Size based on payload mass
+        size_max=15,  # Maximum point size
+        category_orders={"Outcome": ['Success Launch', 'Failure Launch']}  # Set the order for the y-axis
+    )
+
+    # Update the legend font size
+    fig.update_layout(legend=dict(font=dict(size=14)))
+
     return fig
 
 
