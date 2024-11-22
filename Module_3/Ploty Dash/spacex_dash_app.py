@@ -19,8 +19,10 @@ app = dash.Dash(__name__)
 # Create an app layout
 launch_sites = []
 launch_sites.append({'label': 'All Sites', 'value': 'All Sites'})
+
 for item in spacex_df["Launch Site"].value_counts().index:
     launch_sites.append({'label': item, 'value': item})
+
 app.layout = html.Div(children=[html.H1('SpaceX Launch Records Dashboard',
                                         style={'textAlign': 'center', 'color': '#503D36',
                                                'font-size': 40}),
@@ -47,38 +49,46 @@ app.layout = html.Div(children=[html.H1('SpaceX Launch Records Dashboard',
 @app.callback( Output(component_id='success-pie-chart', component_property='figure'),
                Input(component_id='site-dropdown', component_property='value')
 )
-# Add computation to callback function and return graph
-def select(inputt):
-    if inputt == 'All Sites':
-        new_df = spacex_df.groupby(['Launch Site'])["class"].sum().to_frame()
-        new_df = new_df.reset_index()
+def update_pie_chart(selected_site):
+    if selected_site == 'All Sites':
+        new_df = spacex_df.groupby(['Launch Site'])['class'].sum().reset_index()
         fig = px.pie(new_df, values='class', names='Launch Site', title='Total Success Launches by Site')
     else:
-        new_df = spacex_df[spacex_df["Launch Site"] == inputt]["class"].value_counts().to_frame()
-        new_df["name"] = ["Failure", "Success"]
-        fig = px.pie(new_df, values='class', names='name', title='Total Success Launches for ' + inputt)
+        # Filter data for selected site
+        site_data = spacex_df[spacex_df['Launch Site'] == selected_site]
+        
+        # Count success (1) and failure (0) launches
+        success_count = len(site_data[site_data['class'] == 1])
+        failure_count = len(site_data[site_data['class'] == 0])
+        
+        # Create DataFrame for pie chart
+        new_df = pd.DataFrame({
+            'Outcome': ['Success', 'Failure'],
+            'Count': [success_count, failure_count]
+        })
+        
+        fig = px.pie(new_df, values='Count', names='Outcome', 
+                    title=f'Success vs Failed Launches for {selected_site}')
+
+    fig.update_traces(textposition='inside', textinfo='percent+label')
     return fig
 
 # TASK 4:
 # Add a callback function for `site-dropdown` and `payload-slider` as inputs, `success-payload-scatter-chart` as output
 @app.callback( Output(component_id='success-payload-scatter-chart', component_property='figure'),
-               Input(component_id='site-dropdown', component_property='value'), Input(component_id='payload-slider', component_property='value') 
+               [Input(component_id='site-dropdown', component_property='value'), Input(component_id='payload-slider', component_property='value')] 
 )
-def scatter(input1, input2):
-    print(input1)
-    print(input2)
-    if input1 == 'All Sites':
-        new_df = spacex_df
-        new_df2 = new_df[new_df["Payload Mass (kg)"] >= input2[0]]
-        new_df3 = new_df2[new_df["Payload Mass (kg)"] <= input2[1]]
-        fig2 = px.scatter(new_df3, y="class", x="Payload Mass (kg)", color="Booster Version Category")
+def update_scatter_plot(selected_site, payload_range):
+    if selected_site == 'All Sites':
+        filtered_df = spacex_df
     else:
-        new_df = spacex_df[spacex_df["Launch Site"] == input1]
-        new_df2 = new_df[new_df["Payload Mass (kg)"] >= input2[0]]
-        new_df3 = new_df2[new_df["Payload Mass (kg)"] <= input2[1]]
-        #new_df2 = new_df[new_df["Payload Mass (kg)"] >= input2[0] & new_df["Payload Mass (kg)"] <= input2[1]]
-        fig2 = px.scatter(new_df3, y="class", x="Payload Mass (kg)", color="Booster Version Category")
-    return fig2
+        filtered_df = spacex_df[spacex_df["Launch Site"] == selected_site]
+
+    filtered_df = filtered_df[(filtered_df["Payload Mass (kg)"] >= payload_range[0]) & 
+                               (filtered_df["Payload Mass (kg)"] <= payload_range[1])]
+    
+    fig = px.scatter(filtered_df, y="class", x="Payload Mass (kg)", color="Booster Version Category")
+    return fig
 
 
 # Run the app
